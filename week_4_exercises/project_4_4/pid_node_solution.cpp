@@ -64,7 +64,7 @@ void oswinPoseCallback(geometry_msgs::PoseStamped msg)
 {
     if (last_msg_time_.sec == 0)
     {
-        last_msg_time_ = msg.header.stamp;;
+        last_msg_time_ = msg.header.stamp;
         return;
     }
 
