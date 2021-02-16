@@ -14,8 +14,8 @@ double integral_, pre_error_;
 
 // PID Global Variables
 double Kp_ = 1;
-double Ki_ = 0;
-double Kd_ = 0;
+double Ki_ = .001;
+double Kd_ = 1;
 
 /**
  * Callback for Kyle (top turtle). Saves the position of the top turtle into the global
@@ -24,7 +24,7 @@ double Kd_ = 0;
  */
 void kylePoseCallback(geometry_msgs::PoseStamped msg)
 {
-    // IMPLEMENT!
+    kyle_pose_ = msg;
 }
 
 
@@ -35,16 +35,20 @@ void kylePoseCallback(geometry_msgs::PoseStamped msg)
  */
 double pid(double error, double dt) {
     // IMPLEMENT!
+    double u = 0;
 
     // Proportional term
-
+    u += Kp_ * error;
     // Integral term
-
+    integral_ += error * dt;
+    u += Ki_ * integral_;
     // Derivative term
+    double derivative = (error - pre_error_) / dt;
+    u += Kd_ * derivative;
 
-    // Calculate total output
+    pre_error_ = error;
 
-    return 0;
+    return u;
 }
 
 
@@ -57,17 +61,30 @@ void oswinPoseCallback(geometry_msgs::PoseStamped msg)
 {
     // IMPLEMENT!
 
-    // Check if last_msg_time_ is populated (not first callback call)
+    if (last_msg_time_.sec == 0)
+    {
+        last_msg_time_ = msg.header.stamp;
+        return;
+    }
 
-    // Calculate error in x between top and bottom turtles and the delta time
-
+    // Calculate error in x between top and bottom turtles
+    double error = kyle_pose_.pose.position.x - msg.pose.position.x;
+    double dt = (msg.header.stamp - last_msg_time_).toSec();
     // Call PID function to get controls
-
+    double u = pid(error, dt);
+    
     // Save message time in last_msg_time_
+    last_msg_time_ = msg.header.stamp;
 
-    // publish a geometry_msgs::Twist message so that the turtle will move
+    // publish a geometry_msgs::Twist message so that the turtle will movehttps://github.com/RoboJackets-Software-Training/week-4-robotics-joshkirsh720.git
+    geometry_msgs::Twist vel_msg;
+    vel_msg.linear.x = u;
+    velocity_pub_.publish(vel_msg);
 
     // publish a std_msgs::Float64 message to be able to graph the error in rqt_plot
+    std_msgs::Float64 err_msg;
+    err_msg.data = error;
+    error_pub_.publish(err_msg);
 }
 
 
@@ -78,10 +95,15 @@ int main(int argc, char **argv)
     // IMPLEMENT!
 
     // Create global nodehandle
+    ros::NodeHandle nh;
 
-    // Advertise "/oswin/velocity" to control the bottom turtle and "/error" for visualization
+    // Advertise "/oswin/velocitnaresh.thadhani@mse.gatech.eduy" to control the bottom turtle and "/error" for visualization
+    velocity_pub_ = nh.advertise<geometry_msgs::Twist>("oswin/velocity", 1);
+    error_pub_ = nh.advertise<std_msgs::Float64>("error", 1);
 
     // Subscriber to both ground truth topics to get their positions
+    ros::Subscriber kyle_sub = nh.subscribe("kyle/ground_truth", 1, kylePoseCallback);
+    ros::Subscriber oswin_sub = nh.subscribe("oswin/ground_truth", 1, oswinPoseCallback);
 
     // Don't forget to call ros::spin() to let ros do things behind the scenes and call your callback
     // functions when it receives a new message!
